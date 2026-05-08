@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vessel Report Validator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f4f8; color: #1a202c; min-height: 100vh; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white; padding: 20px 32px; display: flex; align-items: center; gap: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+  .header-icon { font-size: 32px; }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .header p { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+
+  /* Progress */
+  .progress-bar { background: white; padding: 20px 32px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 0; }
+  .step-item { display: flex; align-items: center; gap: 8px; flex: 1; }
+  .step-item:last-child { flex: 0; }
+  .step-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; border: 2px solid #cbd5e0; color: #a0aec0; background: white; transition: all 0.3s; flex-shrink: 0; }
+  .step-circle.active { border-color: #3182ce; color: white; background: #3182ce; }
+  .step-circle.done { border-color: #38a169; color: white; background: #38a169; }
+  .step-label { font-size: 12px; color: #718096; font-weight: 500; }
+  .step-label.active { color: #2b6cb0; font-weight: 700; }
+  .step-label.done { color: #276749; }
+  .step-connector { flex: 1; height: 2px; background: #e2e8f0; margin: 0 8px; }
+  .step-connector.done { background: #38a169; }
+
+  /* Main container */
+  .container { max-width: 1400px; margin: 0 auto; padding: 28px 32px; }
+
+  /* Cards */
+  .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04); padding: 28px; margin-bottom: 20px; }
+  .card-title { font-size: 18px; font-weight: 700; color: #1a202c; margin-bottom: 6px; }
+  .card-sub { font-size: 13px; color: #718096; margin-bottom: 20px; }
+
+  /* Upload area */
+  .upload-zone { border: 2px dashed #bee3f8; background: #ebf8ff; border-radius: 10px; padding: 48px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: #3182ce; background: #dbeafe; }
+  .upload-icon { font-size: 48px; margin-bottom: 12px; }
+  .upload-zone h3 { font-size: 16px; color: #2b6cb0; margin-bottom: 6px; }
+  .upload-zone p { font-size: 13px; color: #718096; }
+  .upload-btn { display: inline-block; margin-top: 16px; padding: 10px 24px; background: #3182ce; color: white; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: background 0.2s; }
+  .upload-btn:hover { background: #2c5282; }
+  #fileInput { display: none; }
+
+  /* Buttons */
+  .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: #3182ce; color: white; }
+  .btn-primary:hover { background: #2c5282; }
+  .btn-success { background: #38a169; color: white; }
+  .btn-success:hover { background: #276749; }
+  .btn-outline { background: white; color: #4a5568; border: 1px solid #cbd5e0; }
+  .btn-outline:hover { background: #f7fafc; }
+  .btn-danger { background: #e53e3e; color: white; }
+  .btn-danger:hover { background: #c53030; }
+  .btn-sm { padding: 6px 14px; font-size: 12px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-group { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: #f7fafc; padding: 10px 12px; text-align: left; font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0; white-space: nowrap; position: sticky; top: 0; }
+  tbody td { padding: 8px 12px; border-bottom: 1px solid #f0f4f8; color: #2d3748; }
+  tbody tr:hover { background: #f7fafc; }
+  tbody tr:last-child td { border-bottom: none; }
+  .table-scroll { max-height: 340px; overflow-y: auto; }
+
+  /* Alerts */
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 8px; }
+  .alert-info { background: #ebf8ff; border: 1px solid #bee3f8; color: #2b6cb0; }
+  .alert-success { background: #f0fff4; border: 1px solid #9ae6b4; color: #276749; }
+  .alert-warning { background: #fffbeb; border: 1px solid #fbd38d; color: #744210; }
+  .alert-error { background: #fff5f5; border: 1px solid #fed7d7; color: #c53030; }
+  .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Field mapping */
+  .mapping-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .mapping-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
+  .mapping-row.auto-mapped { border-color: #9ae6b4; background: #f0fff4; }
+  .mapping-row.required-missing { border-color: #fed7d7; background: #fff5f5; }
+  .field-label { font-size: 13px; font-weight: 600; color: #2d3748; min-width: 160px; }
+  .field-req { color: #e53e3e; margin-left: 2px; }
+  .field-select { flex: 1; padding: 6px 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; background: white; color: #2d3748; }
+  .auto-badge { font-size: 10px; background: #38a169; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+  .skip-badge { font-size: 10px; background: #718096; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+
+  /* Scoring */
+  .score-header { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .score-card { background: white; border-radius: 10px; padding: 20px; text-align: center; border: 2px solid transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .score-card.excellent { border-color: #38a169; background: #f0fff4; }
+  .score-card.good { border-color: #3182ce; background: #ebf8ff; }
+  .score-card.fair { border-color: #ed8936; background: #fffaf0; }
+  .score-card.poor { border-color: #e53e3e; background: #fff5f5; }
+  .score-num { font-size: 36px; font-weight: 800; line-height: 1; }
+  .score-card.excellent .score-num { color: #276749; }
+  .score-card.good .score-num { color: #2b6cb0; }
+  .score-card.fair .score-num { color: #c05621; }
+  .score-card.poor .score-num { color: #c53030; }
+  .score-label { font-size: 12px; color: #718096; margin-top: 4px; }
+  .score-grade { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  /* Report results */
+  .report-block { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .report-header { padding: 14px 18px; background: #f7fafc; display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; }
+  .report-header:hover { background: #edf2f7; }
+  .report-title { font-size: 14px; font-weight: 700; flex: 1; }
+  .report-meta { font-size: 12px; color: #718096; }
+  .report-score-badge { padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+  .badge-excellent { background: #c6f6d5; color: #276749; }
+  .badge-good { background: #bee3f8; color: #2b6cb0; }
+  .badge-fair { background: #feebc8; color: #c05621; }
+  .badge-poor { background: #fed7d7; color: #c53030; }
+  .badge-na { background: #e2e8f0; color: #718096; }
+  .report-body { padding: 16px 18px; display: none; }
+  .report-body.open { display: block; }
+  .chevron { transition: transform 0.2s; font-size: 12px; color: #718096; }
+  .chevron.open { transform: rotate(90deg); }
+
+  /* Validation result rows */
+  .vr-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+  .vr-table th { background: #edf2f7; padding: 6px 10px; text-align: left; font-weight: 600; color: #4a5568; }
+  .vr-table td { padding: 6px 10px; border-bottom: 1px solid #f0f4f8; vertical-align: top; }
+  .vr-pass { color: #276749; font-weight: 600; }
+  .vr-fail { color: #c53030; font-weight: 600; }
+  .vr-warn { color: #c05621; font-weight: 600; }
+  .vr-skip { color: #a0aec0; }
+  .vr-cat { font-size: 10px; background: #edf2f7; color: #4a5568; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+
+  /* Validation list */
+  .val-list { columns: 2; column-gap: 24px; }
+  @media (max-width: 768px) { .val-list { columns: 1; } }
+  .val-item { break-inside: avoid; padding: 6px 0; border-bottom: 1px solid #f0f4f8; font-size: 12px; display: flex; gap: 8px; }
+  .val-id { font-weight: 700; color: #2b6cb0; min-width: 48px; }
+  .val-desc { color: #4a5568; flex: 1; }
+  .val-type { font-size: 10px; padding: 2px 5px; border-radius: 4px; font-weight: 600; white-space: nowrap; align-self: flex-start; margin-top: 1px; }
+  .type-error { background: #fed7d7; color: #c53030; }
+  .type-warning { background: #feebc8; color: #c05621; }
+  .type-notification { background: #bee3f8; color: #2b6cb0; }
+
+  /* Sort status */
+  .sort-info { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
+  .sort-ok { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+  .sort-warn { background: #fffbeb; color: #744210; border: 1px solid #fbd38d; }
+  .sort-err { background: #fff5f5; color: #c53030; border: 1px solid #fed7d7; }
+
+  /* Stats bar */
+  .stats-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat-box { background: white; border-radius: 8px; padding: 14px 18px; border: 1px solid #e2e8f0; min-width: 120px; }
+  .stat-num { font-size: 24px; font-weight: 800; color: #2d3748; }
+  .stat-lbl { font-size: 11px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; }
+  .tab { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #718096; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+  .tab:hover { color: #2d3748; }
+  .tab.active { color: #3182ce; border-bottom-color: #3182ce; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Overall summary bar */
+  .pass-bar-wrap { background: #e2e8f0; border-radius: 999px; height: 12px; overflow: hidden; margin: 8px 0; }
+  .pass-bar { height: 100%; border-radius: 999px; transition: width 0.5s; }
+  .pass-bar.excellent { background: #38a169; }
+  .pass-bar.good { background: #3182ce; }
+  .pass-bar.fair { background: #ed8936; }
+  .pass-bar.poor { background: #e53e3e; }
+
+  .hidden { display: none !important; }
+
+  /* Tooltip */
+  [title] { cursor: help; }
+
+  @media print {
+    .header, .progress-bar, .btn-group, .upload-zone { display: none; }
+    .container { padding: 0; }
+    .card { box-shadow: none; border: 1px solid #e2e8f0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">⚓</div>
+  <div>
+    <h1>Vessel Report Validator</h1>
+    <p>Marine Noon Report Data Quality Checker — Scope 3 & Performance Analytics</p>
+  </div>
+</div>
+
+<div class="progress-bar" id="progressBar">
+  <div class="step-item">
+    <div class="step-circle active" id="sc1">1</div>
+    <div class="step-label active" id="sl1">Upload Data</div>
+  </div>
+  <div class="step-connector" id="conn1"></div>
+  <div class="step-item">
+    <div class="step-circle" id="sc2">2</div>
+    <div class="step-label" id="sl2">Preview & Sort</div>
+  </div>
+  <div class="step-connector" id="conn2"></div>
+  <div class="step-item">
+    <div class="step-circle" id="sc3">3</div>
+    <div class="step-label" id="sl3">Map Fields</div>
+  </div>
+  <div class="step-connector" id="conn3"></div>
+  <div class="step-item">
+    <div class="step-circle" id="sc4">4</div>
+    <div class="step-label" id="sl4">Validate & Score</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- STEP 1: Upload -->
+  <div id="step1">
+    <div class="card">
+      <div class="card-title">Upload Report File</div>
+      <div class="card-sub">Upload a CSV or JSON file containing vessel noon reports from your customer</div>
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">📂</div>
+        <h3>Drag & drop your file here</h3>
+        <p>Supports CSV and JSON formats — any column naming convention</p>
+        <label class="upload-btn" for="fileInput">Browse Files</label>
+        <input type="file" id="fileInput" accept=".csv,.json,.txt">
+      </div>
+      <div id="fileInfo" class="hidden" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">What this tool does</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:8px;">
+        <div style="padding:16px;background:#ebf8ff;border-radius:8px;border-left:3px solid #3182ce;">
+          <div style="font-weight:700;font-size:14px;color:#2b6cb0;margin-bottom:4px;">🔄 Smart Sorting</div>
+          <div style="font-size:12px;color:#4a5568;">Auto-detects date columns and arranges reports in chronological order</div>
+        </div>
+        <div style="padding:16px;background:#f0fff4;border-radius:8px;border-left:3px solid #38a169;">
+          <div style="font-weight:700;font-size:14px;color:#276749;margin-bottom:4px;">🗺️ Field Mapping</div>
+          <div style="font-size:12px;color:#4a5568;">Maps your column names to standard fields with intelligent alias detection</div>
+        </div>
+        <div style="padding:16px;background:#fffbeb;border-radius:8px;border-left:3px solid #ed8936;">
+          <div style="font-weight:700;font-size:14px;color:#c05621;margin-bottom:4px;">⚙️ 65+ Validations</div>
+          <div style="font-size:12px;color:#4a5568;">Checks reporting periods, navigation, engine, fuel consumption, EU ETS, Scope 3</div>
+        </div>
+        <div style="padding:16px;background:#fff5f5;border-radius:8px;border-left:3px solid #e53e3e;">
+          <div style="font-weight:700;font-size:14px;color:#c53030;margin-bottom:4px;">📊 Scoring</div>
+          <div style="font-size:12px;color:#4a5568;">Per-report and overall dataset quality scores with actionable insights</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Preview & Sort -->
+  <div id="step2" class="hidden">
+    <div class="card">
+      <div class="card-title">Data Preview</div>
+      <div class="card-sub" id="previewMeta"></div>
+      <div id="sortStatus"></div>
+      <div class="table-wrap table-scroll" id="previewTableWrap"></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="goStep(3)">Continue to Field Mapping →</button>
+        <button class="btn btn-outline" onclick="goStep(1)">← Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Field Mapping -->
+  <div id="step3" class="hidden">
+    <div class="card">
+      <div class="card-title">Map Fields to Standard Names</div>
+      <div class="card-sub">Match your data columns to the standard field names used for validation. Auto-detected fields are highlighted in green.</div>
+      <div id="mappingStats" class="alert alert-info" style="margin-bottom:16px;"></div>
+      <div class="mapping-grid" id="mappingGrid"></div>
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="runValidation()">Run Validation & Score ▶</button>
+        <button class="btn btn-outline" onclick="goStep(2)">← Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Results -->
+  <div id="step4" class="hidden">
+    <div class="card">
+      <div class="card-title">Validation Results</div>
+      <div class="card-sub">Expert analysis as an experienced marine engineer, captain & performance analyst</div>
+
+      <div class="score-header" id="overallScores"></div>
+
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('reports')">📋 Per-Report Results</div>
+        <div class="tab" onclick="switchTab('summary')">📊 Dataset Summary</div>
+        <div class="tab" onclick="switchTab('vallist')">📜 Applied Validations</div>
+      </div>
+
+      <div class="tab-content active" id="tab-reports">
+        <div id="reportResults"></div>
+      </div>
+      <div class="tab-content" id="tab-summary">
+        <div id="summaryContent"></div>
+      </div>
+      <div class="tab-content" id="tab-vallist">
+        <div id="valListContent"></div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-outline" onclick="window.print()">🖨️ Print / Export PDF</button>
+        <button class="btn btn-outline" onclick="exportCSV()">📥 Export Results CSV</button>
+        <button class="btn btn-outline" onclick="goStep(3)">← Remap Fields</button>
+        <button class="btn btn-outline" onclick="goStep(1)">⬆ Upload New File</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  step: 1,
+  rawData: [],
+  headers: [],
+  sortedData: [],
+  sortStatus: null, // 'ok', 'partial', 'failed'
+  sortMessage: '',
+  mapping: {},       // standardKey -> rawColumnName
+  mappedData: [],
+  results: [],
+};
+
+// ============================================================
+// STANDARD FIELDS
+// ============================================================
+const STANDARD_FIELDS = [
+  { key:'report_type', label:'Report Type', required:true, aliases:['type','reporttype','report type','rtype','rep_type','report_type','reporttypecode','report type code'] },
+  { key:'start_datetime_utc', label:'Start DateTime (UTC)', required:true, aliases:['start','startdate','start_date','start_utc','from_date','startdatetime','start datetime','period_from','from','utc_start','start_time'] },
+  { key:'finish_datetime_utc', label:'Finish DateTime (UTC)', required:true, aliases:['finish','end','enddate','end_date','finish_utc','to_date','finishdatetime','finish datetime','period_to','to','utc_end','end_time','finish_time'] },
+  { key:'duration_hours', label:'Duration (hours)', required:true, aliases:['duration','dur','hours','report_duration','duration_hrs','hrs','period_hours','obs_period','observation_period'] },
+  { key:'voyage_number', label:'Voyage Number', required:false, aliases:['voyage','voyage_nr','voyagenr','voy_no','voy_num','voyage_no','voyageno','trip'] },
+  { key:'vessel_name', label:'Vessel Name', required:false, aliases:['vessel','ship','vessel_name','vesselname','shipname','ship_name','imo_name'] },
+  { key:'imo_number', label:'IMO Number', required:false, aliases:['imo','imo_no','imonumber','imo_number','vessel_imo'] },
+  { key:'lat', label:'Latitude', required:false, aliases:['lat','latitude','position_lat','pos_lat','lat_deg'] },
+  { key:'lon', label:'Longitude', required:false, aliases:['lon','long','longitude','position_lon','pos_lon','lon_deg','lng'] },
+  { key:'port_name', label:'Port Name', required:false, aliases:['port','portname','port_name','harbor','harbour','anchorage'] },
+  { key:'unlocode', label:'UNLOCODE', required:false, aliases:['unlocode','unlo','locode','un_locode','port_code','portcode','un_code'] },
+  { key:'from_port', label:'From Port (UNLOCODE)', required:false, aliases:['from_port','departure_port','fromport','port_of_departure','from_unlocode','dep_port'] },
+  { key:'to_port', label:'To Port (UNLOCODE)', required:false, aliases:['to_port','arrival_port','toport','port_of_arrival','to_unlocode','arr_port','destination'] },
+  { key:'distance_obs', label:'Observed Distance (nm)', required:false, aliases:['dist_obs','distance_observed','obs_dist','distance','dist','miles','nm'] },
+  { key:'distance_eng', label:'Engine Distance (nm)', required:false, aliases:['dist_eng','engine_distance','eng_dist','engine_miles'] },
+  { key:'speed_avg', label:'Average Speed (kts)', required:false, aliases:['speed','avg_speed','average_speed','speed_avg','knots','avg_kts','mean_speed'] },
+  { key:'speed_stw', label:'Speed Through Water (kts)', required:false, aliases:['stw','speed_stw','speed_through_water','water_speed'] },
+  { key:'course', label:'Course (deg)', required:false, aliases:['course','heading','true_course','true_heading','cog'] },
+  { key:'wind_force', label:'Wind Force (Beaufort)', required:false, aliases:['wind','wind_force','beaufort','bft','wind_bft','wind_beaufort'] },
+  { key:'wind_direction', label:'Wind Direction', required:false, aliases:['wind_dir','wind_direction','wind_direct'] },
+  { key:'sea_state', label:'Sea State (Douglas)', required:false, aliases:['sea','sea_state','douglas','sea_douglas','seastate','sea_condition'] },
+  { key:'swell', label:'Swell Height (m)', required:false, aliases:['swell','swell_height','swell_ht','wave_height','wave_ht'] },
+  { key:'draft_fwd', label:'Draft Forward (m)', required:false, aliases:['draft_fwd','draft_f','fwd_draft','forward_draft','fore_draft','draft_fore'] },
+  { key:'draft_aft', label:'Draft Aft (m)', required:false, aliases:['draft_aft','draft_a','aft_draft','after_draft','draft_after'] },
+  { key:'displacement', label:'Displacement (MT)', required:false, aliases:['displacement','disp','displacement_mt'] },
+  { key:'me_rpm', label:'ME RPM', required:false, aliases:['rpm','me_rpm','main_engine_rpm','me_average_rpm','avg_rpm','me_avg_rpm'] },
+  { key:'me_power_kw', label:'ME Power (kW)', required:false, aliases:['power','me_power','kw','me_kw','main_engine_power','me_power_kw','brake_power','bhp'] },
+  { key:'me_load_pct', label:'ME Load (%)', required:false, aliases:['load','me_load','engine_load','load_pct','load_percent','me_load_pct'] },
+  { key:'me_fo_cons', label:'ME FO Consumption (MT)', required:false, aliases:['me_fo','me_fuel','me_fo_cons','me_consumption','me_fo_consumption','main_engine_fo'] },
+  { key:'ae_fo_cons', label:'AE FO Consumption (MT)', required:false, aliases:['ae_fo','ae_fuel','ae_fo_cons','ae_consumption','ae_fo_consumption','aux_fo','generator_fo'] },
+  { key:'boiler_fo_cons', label:'Boiler FO Consumption (MT)', required:false, aliases:['boiler_fo','boiler_fuel','boiler_cons','boiler_fo_cons','steam_fo'] },
+  { key:'total_fo_cons', label:'Total FO Consumption (MT)', required:false, aliases:['total_fo','total_fuel','fo_cons','total_fo_cons','total_consumption','total_hfo','hfo_total'] },
+  { key:'total_mgo_cons', label:'Total MGO Consumption (MT)', required:false, aliases:['mgo_cons','mgo','total_mgo','mgo_consumption','total_mgo_cons','do_cons','total_do'] },
+  { key:'total_lsfo_cons', label:'Total LSFO/VLSFO Consumption (MT)', required:false, aliases:['lsfo_cons','vlsfo_cons','lsfo','vlsfo','lsfo_total','vlsfo_total','total_vlsfo','total_lsfo'] },
+  { key:'total_lng_cons', label:'Total LNG Consumption (MT)', required:false, aliases:['lng_cons','lng','total_lng','lng_total','lng_consumption'] },
+  { key:'rob_fo', label:'ROB FO (MT)', required:false, aliases:['rob_fo','rob_hfo','fo_rob','hfo_rob','remaining_fo','rob_heavy_oil'] },
+  { key:'rob_mgo', label:'ROB MGO (MT)', required:false, aliases:['rob_mgo','rob_do','mgo_rob','do_rob','remaining_mgo'] },
+  { key:'rob_lsfo', label:'ROB LSFO/VLSFO (MT)', required:false, aliases:['rob_lsfo','rob_vlsfo','lsfo_rob','vlsfo_rob'] },
+  { key:'rob_lng', label:'ROB LNG (MT)', required:false, aliases:['rob_lng','lng_rob'] },
+  { key:'fo_lcv', label:'FO Lower Calorific Value (kJ/kg)', required:false, aliases:['lcv','fo_lcv','lcv_fo','calorific_value','lower_calorific','lhv','fuel_lcv'] },
+  { key:'cargo_qty', label:'Cargo Quantity (MT)', required:false, aliases:['cargo','cargo_qty','cargo_mt','cargo_weight','load_qty','cargo_tons'] },
+  { key:'eu_ets_flag', label:'EU ETS Flag (Y/N)', required:false, aliases:['eu_ets','ets','eu_ets_flag','ets_flag','eu_flag'] },
+  { key:'eu_ets_flow', label:'EU ETS Flow', required:false, aliases:['ets_flow','eu_flow','eu_ets_flow','ets_direction','flow_type','into_eu','within_eu','out_of_eu'] },
+  { key:'co2_emissions', label:'CO2 Emissions (MT)', required:false, aliases:['co2','co2_mt','emissions','co2_emissions','carbon_emissions','ghg'] },
+  { key:'op_condition', label:'Operating Condition', required:false, aliases:['condition','op_condition','operating_condition','laden_ballast','laden_status','ballast','laden'] },
+];
+
+// ============================================================
+// VALIDATION RULES
+// ============================================================
+// check(cur, prev, all_mapped) -> null (not applicable) | {pass:bool, msg:string, severity:'error'|'warning'|'notification'}
+const VALIDATIONS = [
+
+  // --- REPORTING PERIOD ---
+  {
+    id:'RE-1', category:'Reporting Period', alertType:'Error',
+    description:'Start DateTime must match previous report\'s Finish DateTime',
+    fields:['start_datetime_utc','finish_datetime_utc'],
+    check(cur, prev) {
+      if (!prev) return null;
+      const s = toDate(cur.start_datetime_utc), e = toDate(prev.finish_datetime_utc);
+      if (!s || !e) return null;
+      const diff = Math.abs(s - e) / 60000;
+      if (diff > 30) return { pass:false, msg:`Gap of ${diff.toFixed(0)} min between reports (start: ${fmtDate(s)}, prev end: ${fmtDate(e)})` };
+      if (diff > 1) return { pass:false, msg:`${diff.toFixed(0)} min discrepancy between start and previous finish`, severity:'warning' };
+      return { pass:true };
+    }
+  },
+  {
+    id:'RE-2', category:'Reporting Period', alertType:'Error',
+    description:'Finish DateTime must be after Start DateTime',
+    fields:['start_datetime_utc','finish_datetime_utc'],
+    check(cur) {
+      const s = toDate(cur.start_datetime_utc), e = toDate(cur.finish_datetime_utc);
+      if (!s || !e) return null;
+      if (e <= s) return { pass:false, msg:`Finish (${fmtDate(e)}) is not after Start (${fmtDate(s)})` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'RE-3', category:'Reporting Period', alertType:'Error',
+    description:'Duration must match actual time between Start and Finish DateTimes',
+    fields:['start_datetime_utc','finish_datetime_utc','duration_hours'],
+    check(cur) {
+      const s = toDate(cur.start_datetime_utc), e = toDate(cur.finish_datetime_utc);
+      const d = parseFloat(cur.duration_hours);
+      if (!s || !e || isNaN(d)) return null;
+      const calcH = (e - s) / 3600000;
+      const diff = Math.abs(calcH - d);
+      if (diff > 0.1) return { pass:false, msg:`Duration ${d.toFixed(2)}h vs calculated ${calcH.toFixed(2)}h (diff: ${diff.toFixed(2)}h)` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'RE-4', category:'Reporting Period', alertType:'Warning',
+    description:'Report duration should not exceed 25 hours',
+    fields:['duration_hours'],
+    check(cur) {
+      const d = parseFloat(cur.duration_hours);
+      if (isNaN(d)) return null;
+      if (d > 25) return { pass:false, msg:`Duration ${d.toFixed(1)}h exceeds 25h limit` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'RE-5', category:'Reporting Period', alertType:'Warning',
+    description:'Report duration should not be less than 1 hour',
+    fields:['duration_hours'],
+    check(cur) {
+      const d = parseFloat(cur.duration_hours);
+      if (isNaN(d)) return null;
+      const rt = normalizeReportType(cur.report_type);
+      if (rt === 'PORT') return null; // Port reports can be very short
+      if (d < 1) return { pass:false, msg:`Duration ${d.toFixed(1)}h is less than 1 hour` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'RE-6', category:'Reporting Period', alertType:'Error',
+    description:'Report type must be a valid value (SEA, ARRIVAL, DEPARTURE, PORT)',
+    fields:['report_type'],
+    check(cur) {
+      if (!cur.report_type) return null;
+      const rt = normalizeReportType(cur.report_type);
+      if (!rt) return { pass:false, msg:`Unknown report type: "${cur.report_type}"` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'RE-7', category:'Reporting Period', alertType:'Warning',
+    description:'DateTime should not be in the future',
+    fields:['finish_datetime_utc'],
+    check(cur) {
+      const e = toDate(cur.finish_datetime_utc);
+      if (!e) return null;
+      if (e > new Date()) return { pass:false, msg:`Finish DateTime ${fmtDate(e)} is in the future` };
+      return { pass:true };
+    }
+  },
+
+  // --- GENERAL ---
+  {
+    id:'GE-1', category:'General', alertType:'Warning',
+    description:'Voyage number should be consistent within a voyage',
+    fields:['voyage_number'],
+    check(cur, prev) {
+      if (!prev || !cur.voyage_number || !prev.voyage_number) return null;
+      const rt = normalizeReportType(cur.report_type);
+      if (rt === 'DEPARTURE') return null; // New voyage starts
+      if (cur.voyage_number !== prev.voyage_number) return { pass:false, msg:`Voyage number changed from "${prev.voyage_number}" to "${cur.voyage_number}" without DEPARTURE report` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'GE-2', category:'General', alertType:'Warning',
+    description:'Vessel name should be consistent across all reports',
+    fields:['vessel_name'],
+    check(cur, prev) {
+      if (!prev || !cur.vessel_name || !prev.vessel_name) return null;
+      if (cur.vessel_name.trim().toLowerCase() !== prev.vessel_name.trim().toLowerCase())
+        return { pass:false, msg:`Vessel name changed: "${prev.vessel_name}" → "${cur.vessel_name}"` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'GE-3', category:'General', alertType:'Warning',
+    description:'IMO number should be consistent and valid (7 digits)',
+    fields:['imo_number'],
+    check(cur) {
+      if (!cur.imo_number) return null;
+      const imo = cur.imo_number.replace(/[^0-9]/g,'');
+      if (imo.length !== 7) return { pass:false, msg:`IMO number "${cur.imo_number}" is not 7 digits` };
+      return { pass:true };
+    }
+  },
+
+  // --- NAUTICAL LOG ---
+  {
+    id:'NA-1', category:'Nautical Log', alertType:'Error',
+    description:'Observed distance must be positive for SEA reports',
+    fields:['distance_obs'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      const v = parseFloat(cur.distance_obs);
+      if (isNaN(v)) return null;
+      if (v <= 0) return { pass:false, msg:`Observed distance ${v} nm ≤ 0 for SEA report` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-3', category:'Nautical Log', alertType:'Warning',
+    description:'Speed should be between 1 and 30 knots for SEA reports',
+    fields:['speed_avg'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      const v = parseFloat(cur.speed_avg);
+      if (isNaN(v)) return null;
+      if (v < 1 || v > 30) return { pass:false, msg:`Average speed ${v.toFixed(1)} kts is outside range [1, 30] kts` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-6', category:'Nautical Log', alertType:'Warning',
+    description:'Observed distance should match speed × time for SEA reports',
+    fields:['distance_obs','speed_avg','duration_hours'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      const d = parseFloat(cur.distance_obs), s = parseFloat(cur.speed_avg), h = parseFloat(cur.duration_hours);
+      if (isNaN(d) || isNaN(s) || isNaN(h) || h === 0) return null;
+      const calcD = s * h;
+      const pctDiff = Math.abs(calcD - d) / calcD * 100;
+      if (pctDiff > 15) return { pass:false, msg:`Distance ${d.toFixed(1)} nm vs speed×time = ${calcD.toFixed(1)} nm (${pctDiff.toFixed(1)}% difference)` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-7', category:'Nautical Log', alertType:'Warning',
+    description:'Latitude must be within [-90, 90] degrees',
+    fields:['lat'],
+    check(cur) {
+      if (!cur.lat) return null;
+      const v = parseFloat(cur.lat);
+      if (isNaN(v)) return { pass:false, msg:`Latitude "${cur.lat}" is not a valid number` };
+      if (v < -90 || v > 90) return { pass:false, msg:`Latitude ${v} is outside range [-90, 90]` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-8', category:'Nautical Log', alertType:'Warning',
+    description:'Longitude must be within [-180, 180] degrees',
+    fields:['lon'],
+    check(cur) {
+      if (!cur.lon) return null;
+      const v = parseFloat(cur.lon);
+      if (isNaN(v)) return { pass:false, msg:`Longitude "${cur.lon}" is not a valid number` };
+      if (v < -180 || v > 180) return { pass:false, msg:`Longitude ${v} is outside range [-180, 180]` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-9', category:'Nautical Log', alertType:'Warning',
+    description:'Course must be within [0, 360] degrees',
+    fields:['course'],
+    check(cur) {
+      if (!cur.course) return null;
+      const v = parseFloat(cur.course);
+      if (isNaN(v)) return null;
+      if (v < 0 || v > 360) return { pass:false, msg:`Course ${v}° is outside range [0, 360]` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-10', category:'Nautical Log', alertType:'Warning',
+    description:'Wind force (Beaufort) must be within [0, 12]',
+    fields:['wind_force'],
+    check(cur) {
+      if (!cur.wind_force) return null;
+      const v = parseFloat(cur.wind_force);
+      if (isNaN(v)) return null;
+      if (v < 0 || v > 12) return { pass:false, msg:`Wind force ${v} Bft is outside range [0, 12]` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-11', category:'Nautical Log', alertType:'Warning',
+    description:'Sea state (Douglas scale) must be within [0, 9]',
+    fields:['sea_state'],
+    check(cur) {
+      if (!cur.sea_state) return null;
+      const v = parseFloat(cur.sea_state);
+      if (isNaN(v)) return null;
+      if (v < 0 || v > 9) return { pass:false, msg:`Sea state ${v} is outside Douglas scale [0, 9]` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-12', category:'Nautical Log', alertType:'Warning',
+    description:'Forward draft must be positive and within [0, 30] m',
+    fields:['draft_fwd'],
+    check(cur) {
+      if (!cur.draft_fwd) return null;
+      const v = parseFloat(cur.draft_fwd);
+      if (isNaN(v)) return null;
+      if (v < 0 || v > 30) return { pass:false, msg:`Forward draft ${v} m is outside range [0, 30] m` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-13', category:'Nautical Log', alertType:'Warning',
+    description:'Aft draft must be positive and within [0, 30] m',
+    fields:['draft_aft'],
+    check(cur) {
+      if (!cur.draft_aft) return null;
+      const v = parseFloat(cur.draft_aft);
+      if (isNaN(v)) return null;
+      if (v < 0 || v > 30) return { pass:false, msg:`Aft draft ${v} m is outside range [0, 30] m` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-14', category:'Nautical Log', alertType:'Warning',
+    description:'Observed distance should be consistent with engine distance (within 25%)',
+    fields:['distance_obs','distance_eng'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      const dObs = parseFloat(cur.distance_obs), dEng = parseFloat(cur.distance_eng);
+      if (isNaN(dObs) || isNaN(dEng) || dEng === 0) return null;
+      const pct = Math.abs(dObs - dEng) / dEng * 100;
+      if (pct > 25) return { pass:false, msg:`Observed distance ${dObs.toFixed(1)} nm vs engine distance ${dEng.toFixed(1)} nm (${pct.toFixed(1)}% diff)` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-15', category:'Nautical Log', alertType:'Notification',
+    description:'ARRIVAL/DEPARTURE report should have a port name or UNLOCODE',
+    fields:['port_name','unlocode'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'ARRIVAL' && rt !== 'DEPARTURE' && rt !== 'PORT') return null;
+      if (!cur.port_name && !cur.unlocode) return { pass:false, msg:`Port report has no port name or UNLOCODE` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-16', category:'Nautical Log', alertType:'Warning',
+    description:'UNLOCODE format should be 2-letter country code + 3-letter location code',
+    fields:['unlocode'],
+    check(cur) {
+      if (!cur.unlocode) return null;
+      const code = cur.unlocode.trim().toUpperCase().replace(/\s+/,'');
+      if (!/^[A-Z]{2}[A-Z0-9]{3}$/.test(code)) return { pass:false, msg:`UNLOCODE "${cur.unlocode}" does not match expected format (e.g. SGSIN, NLRTM)` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-17', category:'Nautical Log', alertType:'Warning',
+    description:'From port UNLOCODE format validation',
+    fields:['from_port'],
+    check(cur) {
+      if (!cur.from_port) return null;
+      const code = cur.from_port.trim().toUpperCase().replace(/\s+/,'');
+      if (!/^[A-Z]{2}[A-Z0-9]{3}$/.test(code)) return { pass:false, msg:`From port "${cur.from_port}" does not match UNLOCODE format` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-18', category:'Nautical Log', alertType:'Warning',
+    description:'To port UNLOCODE format validation',
+    fields:['to_port'],
+    check(cur) {
+      if (!cur.to_port) return null;
+      const code = cur.to_port.trim().toUpperCase().replace(/\s+/,'');
+      if (!/^[A-Z]{2}[A-Z0-9]{3}$/.test(code)) return { pass:false, msg:`To port "${cur.to_port}" does not match UNLOCODE format` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-19', category:'Nautical Log', alertType:'Notification',
+    description:'Operating condition should be specified for SEA reports (Laden/Ballast)',
+    fields:['op_condition'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      if (!cur.op_condition) return { pass:false, msg:`Operating condition (Laden/Ballast) not specified for SEA report` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'NA-20', category:'Nautical Log', alertType:'Warning',
+    description:'Speed through water should not exceed 35 knots',
+    fields:['speed_stw'],
+    check(cur) {
+      if (!cur.speed_stw) return null;
+      const v = parseFloat(cur.speed_stw);
+      if (isNaN(v)) return null;
+      if (v > 35) return { pass:false, msg:`STW ${v.toFixed(1)} kts exceeds maximum 35 kts` };
+      return { pass:true };
+    }
+  },
+
+  // --- ENGINE & POWER ---
+  {
+    id:'EN-1', category:'Engine & Power', alertType:'Warning',
+    description:'ME RPM should be positive for SEA reports',
+    fields:['me_rpm'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      const v = parseFloat(cur.me_rpm);
+      if (isNaN(v)) return null;
+      if (v <= 0) return { pass:false, msg:`ME RPM ${v} is not positive for SEA report` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'EN-2', category:'Engine & Power', alertType:'Warning',
+    description:'ME RPM should be within typical range [20, 250]',
+    fields:['me_rpm'],
+    check(cur) {
+      if (!cur.me_rpm) return null;
+      const v = parseFloat(cur.me_rpm);
+      if (isNaN(v)) return null;
+      if (v < 20 || v > 250) return { pass:false, msg:`ME RPM ${v} is outside typical range [20, 250]` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'EN-3', category:'Engine & Power', alertType:'Warning',
+    description:'ME Power should be positive for SEA reports',
+    fields:['me_power_kw'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      const v = parseFloat(cur.me_power_kw);
+      if (isNaN(v)) return null;
+      if (v <= 0) return { pass:false, msg:`ME Power ${v} kW is not positive for SEA report` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'EN-4', category:'Engine & Power', alertType:'Warning',
+    description:'ME load percentage should be within [0, 110]%',
+    fields:['me_load_pct'],
+    check(cur) {
+      if (!cur.me_load_pct) return null;
+      const v = parseFloat(cur.me_load_pct);
+      if (isNaN(v)) return null;
+      if (v < 0 || v > 110) return { pass:false, msg:`ME load ${v}% is outside range [0, 110]%` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'EN-5', category:'Engine & Power', alertType:'Warning',
+    description:'SFOC should be within acceptable range [150, 250] g/kWh for SEA reports > 12h',
+    fields:['me_fo_cons','me_power_kw','duration_hours'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      const h = parseFloat(cur.duration_hours);
+      if (isNaN(h) || h < 12) return null;
+      const fo = parseFloat(cur.me_fo_cons), kw = parseFloat(cur.me_power_kw);
+      if (isNaN(fo) || isNaN(kw) || kw <= 0 || h <= 0) return null;
+      const sfoc = (fo * 1e6) / (kw * h); // g/kWh
+      if (sfoc < 150 || sfoc > 250) return { pass:false, msg:`SFOC ${sfoc.toFixed(1)} g/kWh is outside acceptable range [150, 250] g/kWh` };
+      return { pass:true };
+    }
+  },
+
+  // --- CONSUMPTION ---
+  {
+    id:'CO-1', category:'Consumption', alertType:'Error',
+    description:'Total fuel consumption must be positive for SEA reports',
+    fields:['total_fo_cons'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      const v = parseFloat(cur.total_fo_cons);
+      if (isNaN(v)) return null;
+      if (v <= 0) return { pass:false, msg:`Total FO consumption ${v} MT is not positive for SEA report` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-2', category:'Consumption', alertType:'Warning',
+    description:'Daily FO consumption rate should be within [0, 500] MT/day',
+    fields:['total_fo_cons','duration_hours'],
+    check(cur) {
+      const fo = parseFloat(cur.total_fo_cons), h = parseFloat(cur.duration_hours);
+      if (isNaN(fo) || isNaN(h) || h <= 0) return null;
+      const daily = fo / h * 24;
+      if (daily > 500) return { pass:false, msg:`Daily FO rate ${daily.toFixed(1)} MT/day exceeds 500 MT/day` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-3', category:'Consumption', alertType:'Warning',
+    description:'ROB must not be negative',
+    fields:['rob_fo'],
+    check(cur) {
+      if (!cur.rob_fo && cur.rob_fo !== 0) return null;
+      const v = parseFloat(cur.rob_fo);
+      if (isNaN(v)) return null;
+      if (v < 0) return { pass:false, msg:`ROB FO ${v} MT is negative` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-4', category:'Consumption', alertType:'Warning',
+    description:'MGO ROB must not be negative',
+    fields:['rob_mgo'],
+    check(cur) {
+      if (!cur.rob_mgo && cur.rob_mgo !== 0) return null;
+      const v = parseFloat(cur.rob_mgo);
+      if (isNaN(v)) return null;
+      if (v < 0) return { pass:false, msg:`ROB MGO ${v} MT is negative` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-5', category:'Consumption', alertType:'Warning',
+    description:'ROB should decrease by approximately the consumption amount between consecutive reports',
+    fields:['rob_fo','total_fo_cons'],
+    check(cur, prev) {
+      if (!prev) return null;
+      const robCur = parseFloat(cur.rob_fo), robPrev = parseFloat(prev.rob_fo);
+      const cons = parseFloat(cur.total_fo_cons);
+      if (isNaN(robCur) || isNaN(robPrev) || isNaN(cons)) return null;
+      const calcRob = robPrev - cons;
+      if (Math.abs(calcRob - robCur) > 10 && Math.abs(calcRob - robCur) / Math.max(robPrev, 1) > 0.1)
+        return { pass:false, msg:`ROB FO ${robCur.toFixed(1)} MT; expected ~${calcRob.toFixed(1)} MT (prev ${robPrev.toFixed(1)} - cons ${cons.toFixed(1)})` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-6', category:'Consumption', alertType:'Warning',
+    description:'ME FO consumption should not exceed total FO consumption',
+    fields:['me_fo_cons','total_fo_cons'],
+    check(cur) {
+      const me = parseFloat(cur.me_fo_cons), total = parseFloat(cur.total_fo_cons);
+      if (isNaN(me) || isNaN(total)) return null;
+      if (me > total * 1.05) return { pass:false, msg:`ME FO ${me.toFixed(2)} MT > Total FO ${total.toFixed(2)} MT` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-7', category:'Consumption', alertType:'Warning',
+    description:'Sum of component consumptions should not exceed total consumption significantly',
+    fields:['me_fo_cons','ae_fo_cons','boiler_fo_cons','total_fo_cons'],
+    check(cur) {
+      const me = parseFloat(cur.me_fo_cons)||0, ae = parseFloat(cur.ae_fo_cons)||0, bo = parseFloat(cur.boiler_fo_cons)||0;
+      const total = parseFloat(cur.total_fo_cons);
+      if (isNaN(total) || total === 0) return null;
+      if (me === 0 && ae === 0 && bo === 0) return null;
+      const sum = me + ae + bo;
+      const pct = Math.abs(sum - total) / total * 100;
+      if (pct > 10) return { pass:false, msg:`Sum of ME+AE+Boiler FO (${sum.toFixed(2)} MT) differs from total (${total.toFixed(2)} MT) by ${pct.toFixed(1)}%` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-8', category:'Consumption', alertType:'Warning',
+    description:'FO Lower Calorific Value (LCV) should be within expected range for fuel type',
+    fields:['fo_lcv'],
+    check(cur) {
+      if (!cur.fo_lcv) return null;
+      const v = parseFloat(cur.fo_lcv);
+      if (isNaN(v)) return null;
+      // General range for all marine fuels: 19000-55000 kJ/kg
+      if (v < 19000 || v > 55000) return { pass:false, msg:`LCV ${v} kJ/kg is outside any known fuel range [19000, 55000]` };
+      if (v < 35000) return { pass:false, msg:`LCV ${v} kJ/kg is unusually low (< 35000 kJ/kg)`, severity:'warning' };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-9', category:'Consumption', alertType:'Warning',
+    description:'AE consumption should be positive for all report types',
+    fields:['ae_fo_cons'],
+    check(cur) {
+      const v = parseFloat(cur.ae_fo_cons);
+      if (isNaN(v)) return null;
+      if (v < 0) return { pass:false, msg:`AE FO consumption ${v.toFixed(2)} MT is negative` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-10', category:'Consumption', alertType:'Warning',
+    description:'MGO consumption should be non-negative',
+    fields:['total_mgo_cons'],
+    check(cur) {
+      const v = parseFloat(cur.total_mgo_cons);
+      if (isNaN(v)) return null;
+      if (v < 0) return { pass:false, msg:`Total MGO consumption ${v.toFixed(2)} MT is negative` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'CO-11', category:'Consumption', alertType:'Warning',
+    description:'LSFO/VLSFO ROB must not be negative',
+    fields:['rob_lsfo'],
+    check(cur) {
+      if (!cur.rob_lsfo && cur.rob_lsfo !== 0) return null;
+      const v = parseFloat(cur.rob_lsfo);
+      if (isNaN(v)) return null;
+      if (v < 0) return { pass:false, msg:`ROB LSFO/VLSFO ${v} MT is negative` };
+      return { pass:true };
+    }
+  },
+
+  // --- EU ETS ---
+  {
+    id:'EU-1', category:'EU ETS', alertType:'Warning',
+    description:'EU ETS flow must be valid: Into EU, Within EU, or Out of EU',
+    fields:['eu_ets_flow'],
+    check(cur) {
+      if (!cur.eu_ets_flow) return null;
+      const valid = ['into eu','within eu','out of eu','into_eu','within_eu','out_of_eu','inbound','outbound','internal'];
+      if (!valid.some(v => cur.eu_ets_flow.toLowerCase().includes(v.replace(/_/g,' '))))
+        return { pass:false, msg:`EU ETS flow "${cur.eu_ets_flow}" is not a recognised value` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'EU-2', category:'EU ETS', alertType:'Warning',
+    description:'EU ETS voyage sequence should follow: Into EU → Within EU → Out of EU',
+    fields:['eu_ets_flow'],
+    check(cur, prev) {
+      if (!prev || !cur.eu_ets_flow || !prev.eu_ets_flow) return null;
+      const norm = s => s.toLowerCase().replace(/[_\s]/g,'');
+      const c = norm(cur.eu_ets_flow), p = norm(prev.eu_ets_flow);
+      // Out of EU cannot be followed immediately by another Out of EU without Into EU
+      if (p === 'outofeu' && c === 'outofeu')
+        return { pass:false, msg:`Two consecutive "Out of EU" legs without "Into EU" in between` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'EU-3', category:'EU ETS', alertType:'Notification',
+    description:'EU ETS applicable reports should have CO2 emissions reported',
+    fields:['eu_ets_flag','co2_emissions'],
+    check(cur) {
+      if (!cur.eu_ets_flag) return null;
+      const flag = cur.eu_ets_flag.toLowerCase();
+      if (!['y','yes','true','1'].includes(flag)) return null;
+      if (!cur.co2_emissions) return { pass:false, msg:`EU ETS applicable report has no CO2 emissions data` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'EU-4', category:'EU ETS', alertType:'Warning',
+    description:'CO2 emissions must be positive when reported',
+    fields:['co2_emissions'],
+    check(cur) {
+      if (!cur.co2_emissions) return null;
+      const v = parseFloat(cur.co2_emissions);
+      if (isNaN(v)) return null;
+      if (v < 0) return { pass:false, msg:`CO2 emissions ${v} MT is negative` };
+      return { pass:true };
+    }
+  },
+
+  // --- SCOPE 3 ---
+  {
+    id:'SC-1', category:'Scope 3', alertType:'Warning',
+    description:'CO2 emissions should be derivable from fuel consumption (emission factor check)',
+    fields:['co2_emissions','total_fo_cons'],
+    check(cur) {
+      if (!cur.co2_emissions || !cur.total_fo_cons) return null;
+      const co2 = parseFloat(cur.co2_emissions), fo = parseFloat(cur.total_fo_cons);
+      if (isNaN(co2) || isNaN(fo) || fo <= 0) return null;
+      const factor = co2 / fo;
+      // HSFO emission factor ~3.114, MGO ~3.206, typical range 2.7-3.5
+      if (factor < 2.5 || factor > 4.0)
+        return { pass:false, msg:`CO2/FO ratio ${factor.toFixed(3)} is outside expected range [2.5, 4.0] MT CO2/MT fuel` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'SC-2', category:'Scope 3', alertType:'Warning',
+    description:'LNG consumption CO2 factor check (emission factor ~2.75)',
+    fields:['co2_emissions','total_lng_cons'],
+    check(cur) {
+      if (!cur.co2_emissions || !cur.total_lng_cons) return null;
+      const co2 = parseFloat(cur.co2_emissions), lng = parseFloat(cur.total_lng_cons);
+      const fo = parseFloat(cur.total_fo_cons)||0;
+      if (isNaN(co2) || isNaN(lng) || lng <= 0) return null;
+      if (fo > 0) return null; // Mixed fuel, skip
+      const factor = co2 / lng;
+      if (factor < 2.0 || factor > 3.5)
+        return { pass:false, msg:`CO2/LNG ratio ${factor.toFixed(3)} outside expected range [2.0, 3.5]` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'SC-3', category:'Scope 3', alertType:'Notification',
+    description:'Cargo quantity should be reported for cargo-carrying voyages',
+    fields:['cargo_qty','op_condition'],
+    check(cur) {
+      if (!cur.op_condition) return null;
+      const cond = cur.op_condition.toLowerCase();
+      if (!['laden','loaded','cargo'].some(c => cond.includes(c))) return null;
+      if (!cur.cargo_qty || parseFloat(cur.cargo_qty) <= 0)
+        return { pass:false, msg:`Laden voyage reported but cargo quantity is missing or zero` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'SC-4', category:'Scope 3', alertType:'Warning',
+    description:'Total fuel consumption should be the sum of all fuel types when multiple types reported',
+    fields:['total_fo_cons','total_mgo_cons','total_lsfo_cons'],
+    check(cur) {
+      const fo = parseFloat(cur.total_fo_cons)||0;
+      const mgo = parseFloat(cur.total_mgo_cons)||0;
+      const lsfo = parseFloat(cur.total_lsfo_cons)||0;
+      if (fo === 0 || (mgo === 0 && lsfo === 0)) return null;
+      // If both HFO and MGO/LSFO are reported and HFO seems to be a subtotal, check
+      if (fo < mgo && mgo > 0)
+        return { pass:false, msg:`Total FO ${fo.toFixed(2)} MT is less than MGO ${mgo.toFixed(2)} MT alone` };
+      return { pass:true };
+    }
+  },
+
+  // --- OPERATING CONDITION ---
+  {
+    id:'OP-1', category:'Operating Condition', alertType:'Warning',
+    description:'Operating condition should be Laden or Ballast only',
+    fields:['op_condition'],
+    check(cur) {
+      if (!cur.op_condition) return null;
+      const cond = cur.op_condition.toLowerCase();
+      const valid = ['laden','ballast','loaded','empty','in port','at anchor','canal transit'];
+      if (!valid.some(v => cond.includes(v)))
+        return { pass:false, msg:`Operating condition "${cur.op_condition}" not in expected list (Laden, Ballast, In Port, etc.)` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'OP-2', category:'Operating Condition', alertType:'Warning',
+    description:'PORT reports should have operating condition "In Port" or similar',
+    fields:['op_condition'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'PORT') return null;
+      if (!cur.op_condition) return null;
+      const cond = cur.op_condition.toLowerCase();
+      if (!['port','anchor','berth','moored'].some(v => cond.includes(v)))
+        return { pass:false, msg:`PORT report has operating condition "${cur.op_condition}" which may not be appropriate` };
+      return { pass:true };
+    }
+  },
+
+  // --- CARGO ---
+  {
+    id:'CA-1', category:'Cargo', alertType:'Warning',
+    description:'Cargo quantity must not be negative',
+    fields:['cargo_qty'],
+    check(cur) {
+      if (!cur.cargo_qty) return null;
+      const v = parseFloat(cur.cargo_qty);
+      if (isNaN(v)) return null;
+      if (v < 0) return { pass:false, msg:`Cargo quantity ${v} MT is negative` };
+      return { pass:true };
+    }
+  },
+
+  // --- CROSS-REPORT SEQUENCE ---
+  {
+    id:'SEQ-1', category:'Sequence', alertType:'Warning',
+    description:'After ARRIVAL report, next report should be PORT or DEPARTURE',
+    fields:['report_type'],
+    check(cur, prev) {
+      if (!prev) return null;
+      const prt = normalizeReportType(prev.report_type), crt = normalizeReportType(cur.report_type);
+      if (prt === 'ARRIVAL' && crt === 'SEA')
+        return { pass:false, msg:`SEA report follows directly after ARRIVAL (expected PORT or DEPARTURE)` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'SEQ-2', category:'Sequence', alertType:'Warning',
+    description:'After DEPARTURE report, next report should be SEA or ARRIVAL',
+    fields:['report_type'],
+    check(cur, prev) {
+      if (!prev) return null;
+      const prt = normalizeReportType(prev.report_type), crt = normalizeReportType(cur.report_type);
+      if (prt === 'DEPARTURE' && crt === 'PORT')
+        return { pass:false, msg:`PORT report follows directly after DEPARTURE (expected SEA or ARRIVAL)` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'SEQ-3', category:'Sequence', alertType:'Notification',
+    description:'Voyage should contain at least one SEA report between ports',
+    fields:['report_type'],
+    check(cur, prev, all) {
+      // Only check ARRIVAL reports
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'ARRIVAL') return null;
+      if (!all || all.length < 2) return null;
+      const idx = all.indexOf(cur);
+      // Look back for prior DEPARTURE
+      let foundSea = false;
+      for (let i = idx - 1; i >= 0; i--) {
+        const t = normalizeReportType(all[i].report_type);
+        if (t === 'SEA') { foundSea = true; break; }
+        if (t === 'DEPARTURE') break;
+      }
+      if (!foundSea) return { pass:false, msg:`ARRIVAL report with no SEA report between the prior DEPARTURE` };
+      return { pass:true };
+    }
+  },
+
+  // --- DATA QUALITY ---
+  {
+    id:'DQ-1', category:'Data Quality', alertType:'Warning',
+    description:'Fuel consumption should not be zero for SEA reports longer than 2h',
+    fields:['total_fo_cons','total_mgo_cons','total_lsfo_cons','total_lng_cons','duration_hours'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'SEA') return null;
+      const h = parseFloat(cur.duration_hours);
+      if (isNaN(h) || h < 2) return null;
+      const fo = parseFloat(cur.total_fo_cons)||0;
+      const mgo = parseFloat(cur.total_mgo_cons)||0;
+      const lsfo = parseFloat(cur.total_lsfo_cons)||0;
+      const lng = parseFloat(cur.total_lng_cons)||0;
+      const total = fo + mgo + lsfo + lng;
+      if (total === 0) return { pass:false, msg:`Zero total fuel consumption for ${h.toFixed(1)}h SEA report` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'DQ-2', category:'Data Quality', alertType:'Warning',
+    description:'Speed should be zero or near-zero for PORT reports',
+    fields:['speed_avg'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'PORT') return null;
+      const v = parseFloat(cur.speed_avg);
+      if (isNaN(v)) return null;
+      if (v > 2) return { pass:false, msg:`PORT report shows speed ${v.toFixed(1)} kts (expected ~0)` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'DQ-3', category:'Data Quality', alertType:'Warning',
+    description:'Distance should be zero for PORT reports',
+    fields:['distance_obs'],
+    check(cur) {
+      const rt = normalizeReportType(cur.report_type);
+      if (rt !== 'PORT') return null;
+      const v = parseFloat(cur.distance_obs);
+      if (isNaN(v)) return null;
+      if (v > 5) return { pass:false, msg:`PORT report shows distance ${v.toFixed(1)} nm (expected ~0)` };
+      return { pass:true };
+    }
+  },
+  {
+    id:'DQ-4', category:'Data Quality', alertType:'Notification',
+    description:'Large jump in ROB between consecutive reports may indicate unreported bunkering',
+    fields:['rob_fo'],
+    check(cur, prev) {
+      if (!prev) return null;
+      const robCur = parseFloat(cur.rob_fo), robPrev = parseFloat(prev.rob_fo);
+      if (isNaN(robCur) || isNaN(robPrev)) return null;
+      const diff = robCur - robPrev;
+      if (diff > 50) return { pass:false, msg:`ROB increased by ${diff.toFixed(1)} MT — possible unreported bunkering` };
+      return { pass:true };
+    }
+  },
+
+];
+
+// ============================================================
+// HELPERS
+// ============================================================
+function normalizeReportType(t) {
+  if (!t) return null;
+  const u = t.toString().trim().toUpperCase();
+  if (['SEA','S','AT_SEA','ATSEA','NOON','NOON AT SEA','NOON_AT_SEA'].includes(u)) return 'SEA';
+  if (['ARRIVAL','ARR','A','ARRIVAL REPORT'].includes(u)) return 'ARRIVAL';
+  if (['DEPARTURE','DEP','D','DEPARTURE REPORT'].includes(u)) return 'DEPARTURE';
+  if (['PORT','P','IN PORT','AT PORT','AT_PORT','INPORT','PORT REPORT'].includes(u)) return 'PORT';
+  return null;
+}
+
+function toDate(v) {
+  if (!v) return null;
+  const s = v.toString().trim();
+  if (!s) return null;
+  // Try direct parse
+  let d = new Date(s);
+  if (!isNaN(d)) return d;
+  // Try DD-Mon-YYYY HH:MM  or  DD/MM/YYYY HH:MM
+  const m1 = s.match(/^(\d{1,2})[-\/\s]([A-Za-z]+|\d{1,2})[-\/\s](\d{4})[T\s]?(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m1) {
+    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const mo = isNaN(m1[2]) ? (months[m1[2].toLowerCase().slice(0,3)] ?? -1) : parseInt(m1[2])-1;
+    if (mo >= 0) {
+      d = new Date(Date.UTC(parseInt(m1[3]), mo, parseInt(m1[1]), parseInt(m1[4]), parseInt(m1[5]), parseInt(m1[6]||0)));
+      if (!isNaN(d)) return d;
+    }
+  }
+  // YYYY-MM-DD
+  const m2 = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (m2) {
+    d = new Date(Date.UTC(parseInt(m2[1]), parseInt(m2[2])-1, parseInt(m2[3])));
+    if (!isNaN(d)) return d;
+  }
+  return null;
+}
+
+function fmtDate(d) {
+  if (!d) return '–';
+  return d.toISOString().replace('T',' ').slice(0,16) + ' UTC';
+}
+
+function scoreClass(pct) {
+  if (pct >= 90) return 'excellent';
+  if (pct >= 70) return 'good';
+  if (pct >= 50) return 'fair';
+  return 'poor';
+}
+
+function scoreGrade(pct) {
+  if (pct >= 90) return 'Excellent';
+  if (pct >= 70) return 'Good';
+  if (pct >= 50) return 'Fair';
+  return 'Poor';
+}
+
+// ============================================================
+// CSV PARSER
+// ============================================================
+function parseCSV(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = [];
+  let row = [], field = '', inQuote = false, i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuote) {
+      if (ch === '"') {
+        if (text[i+1] === '"') { field += '"'; i += 2; }
+        else { inQuote = false; i++; }
+      } else { field += ch; i++; }
+    } else {
+      if (ch === '"') { inQuote = true; i++; }
+      else if (ch === ',') { row.push(field); field = ''; i++; }
+      else if (ch === '\n') {
+        row.push(field); field = '';
+        if (row.some(f => f.trim())) rows.push(row);
+        row = []; i++;
+      } else if (ch === '\r') { i++; }
+      else { field += ch; i++; }
+    }
+  }
+  if (field || row.length) { row.push(field); if (row.some(f => f.trim())) rows.push(row); }
+  if (rows.length === 0) return { headers:[], data:[] };
+  const headers = rows[0].map(h => h.trim());
+  const data = rows.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (row[i] || '').trim(); });
+    return obj;
+  });
+  return { headers, data };
+}
+
+// ============================================================
+// JSON PARSER
+// ============================================================
+function parseJSON(text) {
+  const parsed = JSON.parse(text);
+  const arr = Array.isArray(parsed) ? parsed : (parsed.data || parsed.reports || parsed.rows || Object.values(parsed)[0]);
+  if (!Array.isArray(arr) || arr.length === 0) throw new Error('Could not find an array in the JSON file');
+  const headers = [...new Set(arr.flatMap(r => Object.keys(r)))];
+  const data = arr.map(r => {
+    const obj = {};
+    headers.forEach(h => { obj[h] = (r[h] !== undefined && r[h] !== null) ? String(r[h]).trim() : ''; });
+    return obj;
+  });
+  return { headers, data };
+}
+
+// ============================================================
+// AUTO-DETECT DATE COLUMN & SORT
+// ============================================================
+function autoSort(headers, data) {
+  const dateAliases = ['finish_datetime_utc','start_datetime_utc','finish','end_date','finish_date','finish datetime','end datetime','report_date','date','datetime','utc_date','report_end'];
+
+  let dateCol = null;
+  for (const alias of dateAliases) {
+    const match = headers.find(h => h.toLowerCase().replace(/[\s_]/g,'') === alias.toLowerCase().replace(/[\s_]/g,''));
+    if (match) { dateCol = match; break; }
+  }
+  if (!dateCol) {
+    // Try any column with "date" or "time" in name
+    dateCol = headers.find(h => /date|time|datetime/i.test(h));
+  }
+  if (!dateCol) {
+    // Try first 5 headers: see which has valid dates
+    for (const h of headers.slice(0, 5)) {
+      const sample = data.slice(0, 3).map(r => toDate(r[h])).filter(Boolean);
+      if (sample.length >= 2) { dateCol = h; break; }
+    }
+  }
+  if (!dateCol) return { sorted: data, status: 'failed', msg: 'Could not detect a date/datetime column. Please sort manually.', col: null };
+
+  const withDates = data.map((r, i) => ({ row: r, date: toDate(r[dateCol]), idx: i }));
+  const undated = withDates.filter(x => !x.date);
+
+  if (undated.length > data.length * 0.3)
+    return { sorted: data, status: 'failed', msg: `Too many unparseable dates in column "${dateCol}" (${undated.length}/${data.length} rows). Please check the file.`, col: dateCol };
+
+  const dated = withDates.filter(x => x.date);
+  dated.sort((a,b) => a.date - b.date);
+
+  // Check if already sorted
+  const alreadySorted = dated.every((x,i) => i === 0 || x.date >= dated[i-1].date);
+
+  const sortedData = [...dated.map(x=>x.row), ...undated.map(x=>x.row)];
+
+  const status = undated.length > 0 ? 'partial' : 'ok';
+  const msg = undated.length > 0
+    ? `Sorted ${dated.length} reports chronologically by "${dateCol}". ${undated.length} rows had no parseable date and were appended at the end.`
+    : alreadySorted
+      ? `Data was already in chronological order (sorted by "${dateCol}").`
+      : `Sorted ${dated.length} reports chronologically by "${dateCol}".`;
+
+  return { sorted: sortedData, status, msg, col: dateCol };
+}
+
+// ============================================================
+// AUTO-DETECT FIELD MAPPING
+// ============================================================
+function autoDetectMapping(headers) {
+  const mapping = {};
+  const usedHeaders = new Set();
+
+  for (const field of STANDARD_FIELDS) {
+    const aliases = [field.key, ...field.aliases];
+    let matched = null;
+    for (const alias of aliases) {
+      const norm = s => s.toLowerCase().replace(/[\s_\-\.]/g,'');
+      const found = headers.find(h => norm(h) === norm(alias) && !usedHeaders.has(h));
+      if (found) { matched = found; break; }
+    }
+    if (matched) {
+      mapping[field.key] = matched;
+      usedHeaders.add(matched);
+    }
+  }
+  return mapping;
+}
+
+// ============================================================
+// APPLY MAPPING
+// ============================================================
+function applyMapping(data, mapping) {
+  return data.map(row => {
+    const mapped = {};
+    for (const [stdKey, rawCol] of Object.entries(mapping)) {
+      if (rawCol && rawCol !== '__skip__') {
+        mapped[stdKey] = row[rawCol] || '';
+      }
+    }
+    return mapped;
+  });
+}
+
+// ============================================================
+// RUN ALL VALIDATIONS
+// ============================================================
+function validateAll(mappedData) {
+  return mappedData.map((row, idx) => {
+    const prev = idx > 0 ? mappedData[idx-1] : null;
+    const results = [];
+    for (const v of VALIDATIONS) {
+      // Check if any relevant field is mapped
+      const anyMapped = v.fields.some(f => row[f] !== undefined && row[f] !== '');
+      if (!anyMapped) { results.push({ v, result: null, reason: 'Fields not mapped' }); continue; }
+
+      let result;
+      try {
+        result = v.check(row, prev, mappedData);
+      } catch(e) {
+        result = null;
+      }
+      results.push({ v, result });
+    }
+    return { row, idx, results };
+  });
+}
+
+// ============================================================
+// SCORE
+// ============================================================
+function scoreReport(reportResults) {
+  const applicable = reportResults.filter(r => r.result !== null);
+  if (applicable.length === 0) return { score: null, passed: 0, failed: 0, total: 0 };
+  const passed = applicable.filter(r => r.result.pass).length;
+  const failed = applicable.length - passed;
+  const score = Math.round(passed / applicable.length * 100);
+  return { score, passed, failed, total: applicable.length };
+}
+
+// ============================================================
+// UI NAVIGATION
+// ============================================================
+function goStep(n) {
+  state.step = n;
+  [1,2,3,4].forEach(i => {
+    document.getElementById('step'+i).classList.toggle('hidden', i !== n);
+    const sc = document.getElementById('sc'+i);
+    const sl = document.getElementById('sl'+i);
+    const conn = document.getElementById('conn'+i);
+    if (i < n) { sc.className = 'step-circle done'; sc.textContent = '✓'; sl.className = 'step-label done'; if(conn) conn.className = 'step-connector done'; }
+    else if (i === n) { sc.className = 'step-circle active'; sc.textContent = i; sl.className = 'step-label active'; }
+    else { sc.className = 'step-circle'; sc.textContent = i; sl.className = 'step-label'; if(conn) conn.className = 'step-connector'; }
+  });
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['reports','summary','vallist'][i] === name));
+  document.querySelectorAll('.tab-content').forEach(tc => tc.classList.toggle('active', tc.id === 'tab-'+name));
+}
+
+// ============================================================
+// FILE UPLOAD
+// ============================================================
+document.getElementById('uploadZone').addEventListener('dragover', e => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); });
+document.getElementById('uploadZone').addEventListener('dragleave', e => { e.currentTarget.classList.remove('drag-over'); });
+document.getElementById('uploadZone').addEventListener('drop', e => { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+document.getElementById('fileInput').addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['csv','json','txt'].includes(ext)) {
+    showFileInfo(`<div class="alert alert-error"><span class="alert-icon">❌</span>Unsupported file type: .${ext}. Please upload a CSV or JSON file.</div>`);
+    return;
+  }
+  showFileInfo(`<div class="alert alert-info"><span class="alert-icon">⏳</span>Reading file: <strong>${file.name}</strong> (${(file.size/1024).toFixed(1)} KB)...</div>`);
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let parsed;
+      if (ext === 'json') {
+        parsed = parseJSON(e.target.result);
+      } else {
+        parsed = parseCSV(e.target.result);
+      }
+      if (parsed.data.length === 0) throw new Error('No data rows found in the file');
+      state.rawData = parsed.data;
+      state.headers = parsed.headers;
+
+      showFileInfo(`<div class="alert alert-success"><span class="alert-icon">✅</span>
+        Loaded <strong>${file.name}</strong> — ${parsed.data.length} rows, ${parsed.headers.length} columns
+      </div>`);
+
+      // Auto-sort
+      const sortResult = autoSort(state.headers, state.rawData);
+      state.sortedData = sortResult.sorted;
+      state.sortStatus = sortResult.status;
+      state.sortMessage = sortResult.msg;
+
+      // Auto-detect mapping
+      state.mapping = autoDetectMapping(state.headers);
+
+      // Proceed to step 2
+      setTimeout(() => {
+        renderPreview();
+        goStep(2);
+      }, 400);
+    } catch(err) {
+      showFileInfo(`<div class="alert alert-error"><span class="alert-icon">❌</span>Error parsing file: ${err.message}</div>`);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function showFileInfo(html) {
+  const el = document.getElementById('fileInfo');
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+}
+
+// ============================================================
+// STEP 2: PREVIEW
+// ============================================================
+function renderPreview() {
+  const data = state.sortedData;
+  const headers = state.headers;
+
+  document.getElementById('previewMeta').textContent = `${data.length} rows × ${headers.length} columns`;
+
+  // Sort status
+  const statusEl = document.getElementById('sortStatus');
+  const cls = state.sortStatus === 'ok' ? 'sort-ok' : state.sortStatus === 'partial' ? 'sort-warn' : 'sort-err';
+  const icon = state.sortStatus === 'ok' ? '✅' : state.sortStatus === 'partial' ? '⚠️' : '❌';
+  statusEl.innerHTML = `<div class="sort-info ${cls}">${icon} ${state.sortMessage}</div>`;
+
+  if (state.sortStatus === 'failed') {
+    statusEl.innerHTML += `<div class="alert alert-warning" style="margin-bottom:12px;"><span class="alert-icon">⚠️</span>
+      Chronological sorting was not possible. Validation results that depend on report sequence (RE-1, CO-5, SEQ-*) may be inaccurate.
+    </div>`;
+  }
+
+  // Preview table
+  const maxCols = Math.min(headers.length, 12);
+  const maxRows = Math.min(data.length, 50);
+  let html = '<div class="table-scroll"><table><thead><tr>';
+  html += '<th>#</th>';
+  headers.slice(0, maxCols).forEach(h => { html += `<th title="${h}">${h.length > 18 ? h.slice(0,16)+'…' : h}</th>`; });
+  if (headers.length > maxCols) html += `<th>+${headers.length - maxCols} more</th>`;
+  html += '</tr></thead><tbody>';
+  data.slice(0, maxRows).forEach((row, i) => {
+    html += `<tr><td style="color:#a0aec0;font-size:11px;">${i+1}</td>`;
+    headers.slice(0, maxCols).forEach(h => {
+      const v = row[h] || '';
+      html += `<td title="${v}">${v.length > 22 ? v.slice(0,20)+'…' : v}</td>`;
+    });
+    if (headers.length > maxCols) html += '<td>…</td>';
+    html += '</tr>';
+  });
+  if (data.length > maxRows) html += `<tr><td colspan="${maxCols+2}" style="text-align:center;color:#718096;font-style:italic;">… ${data.length - maxRows} more rows</td></tr>`;
+  html += '</tbody></table></div>';
+  document.getElementById('previewTableWrap').innerHTML = html;
+
+  // Render mapping grid
+  renderMappingGrid();
+}
+
+// ============================================================
+// STEP 3: FIELD MAPPING
+// ============================================================
+function renderMappingGrid() {
+  const grid = document.getElementById('mappingGrid');
+  const autoMapped = Object.keys(state.mapping).length;
+
+  document.getElementById('mappingStats').innerHTML = `
+    <span class="alert-icon">ℹ️</span>
+    <span>Auto-detected <strong>${autoMapped}</strong> of ${STANDARD_FIELDS.length} fields.
+    Review and adjust mappings below. Fields marked <span style="color:#e53e3e;">*</span> are required for core validations.</span>
+  `;
+
+  const opts = ['<option value="">— Skip this field —</option>',
+    ...state.headers.map(h => `<option value="${h}">${h}</option>`)].join('');
+
+  let html = '';
+  for (const field of STANDARD_FIELDS) {
+    const mapped = state.mapping[field.key];
+    const isAuto = !!mapped;
+    const rowClass = isAuto ? 'mapping-row auto-mapped' : (field.required ? 'mapping-row required-missing' : 'mapping-row');
+    html += `<div class="${rowClass}" id="mrow_${field.key}">
+      <div class="field-label">${field.label}${field.required ? '<span class="field-req">*</span>' : ''}
+        ${isAuto ? '<span class="auto-badge">AUTO</span>' : ''}
+      </div>
+      <select class="field-select" data-field="${field.key}" onchange="updateMapping(this)">
+        ${opts.replace(`value="${mapped}"`, `value="${mapped}" selected`)}
+      </select>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function updateMapping(sel) {
+  const key = sel.dataset.field;
+  const val = sel.value;
+  if (val) {
+    state.mapping[key] = val;
+    sel.closest('.mapping-row').className = 'mapping-row auto-mapped';
+  } else {
+    delete state.mapping[key];
+    const field = STANDARD_FIELDS.find(f => f.key === key);
+    sel.closest('.mapping-row').className = field?.required ? 'mapping-row required-missing' : 'mapping-row';
+  }
+}
+
+// ============================================================
+// STEP 4: VALIDATION
+// ============================================================
+function runValidation() {
+  state.mappedData = applyMapping(state.sortedData, state.mapping);
+  state.results = validateAll(state.mappedData);
+  renderResults();
+  goStep(4);
+}
+
+function renderResults() {
+  // Overall scores
+  const allResults = state.results.flatMap(r => r.results);
+  const applicable = allResults.filter(r => r.result !== null);
+  const passed = applicable.filter(r => r.result.pass).length;
+  const failed = applicable.filter(r => !r.result.pass).length;
+  const overallScore = applicable.length > 0 ? Math.round(passed / applicable.length * 100) : null;
+
+  const byType = { Error:0, Warning:0, Notification:0 };
+  applicable.filter(r => !r.result.pass).forEach(r => { byType[r.v.alertType] = (byType[r.v.alertType]||0)+1; });
+
+  const sc = overallScore !== null ? scoreClass(overallScore) : 'na';
+  const sg = overallScore !== null ? scoreGrade(overallScore) : 'N/A';
+
+  document.getElementById('overallScores').innerHTML = `
+    <div class="score-card ${sc}">
+      <div class="score-num">${overallScore !== null ? overallScore+'%' : '–'}</div>
+      <div class="score-label">Overall Score</div>
+      <div class="score-grade" style="color:${sc==='excellent'?'#276749':sc==='good'?'#2b6cb0':sc==='fair'?'#c05621':'#c53030'}">${sg}</div>
+    </div>
+    <div class="score-card" style="border-color:#e2e8f0;">
+      <div class="score-num" style="color:#276749;">${passed}</div>
+      <div class="score-label">Checks Passed</div>
+      <div class="score-grade" style="color:#276749;">of ${applicable.length} applicable</div>
+    </div>
+    <div class="score-card" style="border-color:${failed>0?'#e53e3e':'#e2e8f0'};">
+      <div class="score-num" style="color:${failed>0?'#c53030':'#276749'}">${failed}</div>
+      <div class="score-label">Checks Failed</div>
+      <div class="score-grade" style="color:${failed>0?'#c53030':'#276749'}">${byType.Error} errors, ${byType.Warning} warnings</div>
+    </div>
+    <div class="score-card" style="border-color:#e2e8f0;">
+      <div class="score-num" style="color:#2d3748;">${state.results.length}</div>
+      <div class="score-label">Reports Analysed</div>
+      <div class="score-grade" style="color:#718096;">${VALIDATIONS.length} rules applied</div>
+    </div>
+  `;
+
+  // Per-report results
+  let repHtml = '';
+  state.results.forEach((rpt, i) => {
+    const { score, passed, failed, total } = scoreReport(rpt.results);
+    const sc2 = score !== null ? scoreClass(score) : 'na';
+    const rt = normalizeReportType(rpt.row.report_type) || rpt.row.report_type || 'UNKNOWN';
+    const dtRaw = rpt.row.finish_datetime_utc || rpt.row.start_datetime_utc || '';
+    const dt = toDate(dtRaw);
+    const dtStr = dt ? fmtDate(dt) : (dtRaw || 'No date');
+    const voy = rpt.row.voyage_number ? `Voy ${rpt.row.voyage_number}` : '';
+
+    const fails = rpt.results.filter(r => r.result && !r.result.pass);
+    const badges = fails.filter(r => r.v.alertType === 'Error').length > 0 ? `<span style="font-size:10px;background:#fed7d7;color:#c53030;padding:2px 6px;border-radius:4px;font-weight:700;">${fails.filter(r=>r.v.alertType==='Error').length} ERR</span>` : '';
+
+    repHtml += `
+    <div class="report-block">
+      <div class="report-header" onclick="toggleReport(${i})">
+        <span class="chevron" id="chev${i}">▶</span>
+        <div class="report-title">#${i+1} &nbsp; ${rt} &nbsp; <span style="font-weight:400;color:#718096;">${dtStr}</span> &nbsp; <span style="font-size:12px;color:#a0aec0;">${voy}</span></div>
+        ${badges}
+        <div class="report-score-badge badge-${sc2}">${score !== null ? score+'%' : 'N/A'} ${score !== null ? scoreGrade(score) : ''}</div>
+      </div>
+      <div class="report-body" id="rbody${i}">
+        ${score !== null ? `
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#718096;margin-bottom:4px;">
+            <span>${passed} passed / ${total} applicable checks</span>
+            <span>${score}%</span>
+          </div>
+          <div class="pass-bar-wrap"><div class="pass-bar ${sc2}" style="width:${score}%"></div></div>
+        </div>` : ''}
+        ${renderValidationTable(rpt.results)}
+      </div>
+    </div>`;
+  });
+  document.getElementById('reportResults').innerHTML = repHtml || '<div class="alert alert-info"><span class="alert-icon">ℹ️</span>No reports to display.</div>';
+
+  // Summary
+  renderSummary(applicable, passed, failed, byType);
+
+  // Validation list
+  renderValList();
+}
+
+function toggleReport(i) {
+  const body = document.getElementById('rbody'+i);
+  const chev = document.getElementById('chev'+i);
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+function renderValidationTable(results) {
+  const relevant = results.filter(r => r.result !== null);
+  if (relevant.length === 0) return '<div style="font-size:13px;color:#718096;font-style:italic;">No applicable validations for this report type with current field mapping.</div>';
+
+  const fails = relevant.filter(r => !r.result.pass);
+  const passes = relevant.filter(r => r.result.pass);
+
+  let html = '<table class="vr-table"><thead><tr><th>ID</th><th>Category</th><th>Status</th><th>Alert</th><th>Details</th></tr></thead><tbody>';
+
+  // Show failures first
+  const sorted = [...fails, ...passes];
+  sorted.forEach(({ v, result }) => {
+    const pass = result.pass;
+    const cls = pass ? 'vr-pass' : (v.alertType === 'Error' ? 'vr-fail' : 'vr-warn');
+    const icon = pass ? '✓' : (v.alertType === 'Error' ? '✗' : '⚠');
+    const msg = pass ? '–' : (result.msg || v.description);
+    html += `<tr>
+      <td><strong>${v.id}</strong></td>
+      <td><span class="vr-cat">${v.category}</span></td>
+      <td class="${cls}">${icon} ${pass ? 'Pass' : 'Fail'}</td>
+      <td><span class="val-type type-${v.alertType.toLowerCase()}">${v.alertType}</span></td>
+      <td style="font-size:12px;color:${pass?'#718096':'#2d3748'};">${msg}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+function renderSummary(applicable, passed, failed, byType) {
+  const overallScore = applicable.length > 0 ? Math.round(passed / applicable.length * 100) : null;
+
+  // Failures by category
+  const byCat = {};
+  applicable.filter(r => !r.result.pass).forEach(r => {
+    byCat[r.v.category] = (byCat[r.v.category]||[]);
+    byCat[r.v.category].push(r.v.id);
+  });
+
+  // Top failure validations
+  const vFails = {};
+  state.results.forEach(rpt => {
+    rpt.results.filter(r => r.result && !r.result.pass).forEach(r => {
+      vFails[r.v.id] = (vFails[r.v.id]||0)+1;
+    });
+  });
+  const topFails = Object.entries(vFails).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  // Per-report scores
+  const scores = state.results.map((r,i) => {
+    const s = scoreReport(r.results);
+    const rt = normalizeReportType(r.row.report_type) || '?';
+    const dt = toDate(r.row.finish_datetime_utc || r.row.start_datetime_utc);
+    return { idx:i+1, rt, dt, ...s };
+  });
+
+  let html = `
+  <div class="stats-row">
+    <div class="stat-box"><div class="stat-num">${state.results.length}</div><div class="stat-lbl">Reports</div></div>
+    <div class="stat-box"><div class="stat-num">${applicable.length}</div><div class="stat-lbl">Checks Applied</div></div>
+    <div class="stat-box" style="border-color:${byType.Error>0?'#fed7d7':''}"><div class="stat-num" style="color:${byType.Error>0?'#c53030':''}">${byType.Error}</div><div class="stat-lbl">Errors</div></div>
+    <div class="stat-box" style="border-color:${byType.Warning>0?'#feebc8':''}"><div class="stat-num" style="color:${byType.Warning>0?'#c05621':''}">${byType.Warning}</div><div class="stat-lbl">Warnings</div></div>
+    <div class="stat-box"><div class="stat-num">${byType.Notification||0}</div><div class="stat-lbl">Notifications</div></div>
+    <div class="stat-box"><div class="stat-num">${overallScore !== null ? overallScore+'%' : '–'}</div><div class="stat-lbl">Quality Score</div></div>
+  </div>`;
+
+  // Interpretation note
+  if (overallScore !== null) {
+    const grade = scoreGrade(overallScore);
+    let note = '';
+    if (overallScore < 50) note = '⚠️ Data quality is poor. Multiple critical errors detected. This data requires significant remediation before use in performance or emissions reporting.';
+    else if (overallScore < 70) note = '⚠️ Data quality is fair. Several issues detected that may affect performance analysis accuracy. Review failed checks and contact the reporter.';
+    else if (overallScore < 90) note = '✅ Data quality is good. Minor issues detected. The data is broadly usable but flagged items should be reviewed.';
+    else note = '✅ Data quality is excellent. The data meets high quality standards for performance and emissions reporting.';
+    html += `<div class="alert ${overallScore>=70?'alert-success':'alert-warning'}" style="margin-bottom:20px;"><span class="alert-icon">${overallScore>=70?'✅':'⚠️'}</span><span><strong>Expert Assessment (${grade}):</strong> ${note}</span></div>`;
+  }
+
+  // Top failing checks
+  if (topFails.length > 0) {
+    html += `<div style="margin-bottom:20px;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:12px;">Most Frequent Issues</div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse;">
+        <thead><tr>
+          <th style="padding:8px 10px;background:#f7fafc;text-align:left;border-bottom:2px solid #e2e8f0;">Rule ID</th>
+          <th style="padding:8px 10px;background:#f7fafc;text-align:left;border-bottom:2px solid #e2e8f0;">Description</th>
+          <th style="padding:8px 10px;background:#f7fafc;text-align:left;border-bottom:2px solid #e2e8f0;">Type</th>
+          <th style="padding:8px 10px;background:#f7fafc;text-align:right;border-bottom:2px solid #e2e8f0;">Occurrences</th>
+        </tr></thead><tbody>`;
+    topFails.forEach(([id, cnt]) => {
+      const v = VALIDATIONS.find(v => v.id === id);
+      if (!v) return;
+      html += `<tr>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;font-weight:700;color:#2b6cb0;">${id}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;">${v.description}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;"><span class="val-type type-${v.alertType.toLowerCase()}">${v.alertType}</span></td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;text-align:right;font-weight:700;">${cnt} / ${state.results.length}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // Category breakdown
+  html += `<div style="margin-bottom:20px;">
+    <div style="font-weight:700;font-size:15px;margin-bottom:12px;">Issues by Category</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">`;
+
+  const catAll = {};
+  state.results.forEach(rpt => {
+    rpt.results.filter(r => r.result !== null).forEach(r => {
+      catAll[r.v.category] = catAll[r.v.category] || { total:0, fail:0 };
+      catAll[r.v.category].total++;
+      if (!r.result.pass) catAll[r.v.category].fail++;
+    });
+  });
+
+  Object.entries(catAll).sort((a,b) => b[1].fail - a[1].fail).forEach(([cat, {total, fail}]) => {
+    const pct = total > 0 ? Math.round((total-fail)/total*100) : 0;
+    const sc2 = scoreClass(pct);
+    html += `<div style="padding:12px;background:#f7fafc;border-radius:8px;border:1px solid #e2e8f0;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${cat}</div>
+      <div style="font-size:12px;color:#718096;margin-bottom:6px;">${total-fail}/${total} passed</div>
+      <div class="pass-bar-wrap"><div class="pass-bar ${sc2}" style="width:${pct}%"></div></div>
+      <div style="font-size:12px;margin-top:4px;font-weight:700;color:${sc2==='excellent'?'#276749':sc2==='good'?'#2b6cb0':sc2==='fair'?'#c05621':'#c53030'}">${pct}%</div>
+    </div>`;
+  });
+  html += '</div></div>';
+
+  // Per-report score table
+  html += `<div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:12px;">Per-Report Scores</div>
+    <div class="table-wrap"><table style="font-size:13px;border-collapse:collapse;width:100%;">
+      <thead><tr>
+        <th style="padding:8px 10px;background:#f7fafc;border-bottom:2px solid #e2e8f0;">#</th>
+        <th style="padding:8px 10px;background:#f7fafc;border-bottom:2px solid #e2e8f0;">Type</th>
+        <th style="padding:8px 10px;background:#f7fafc;border-bottom:2px solid #e2e8f0;">Date/Time (UTC)</th>
+        <th style="padding:8px 10px;background:#f7fafc;border-bottom:2px solid #e2e8f0;">Passed</th>
+        <th style="padding:8px 10px;background:#f7fafc;border-bottom:2px solid #e2e8f0;">Failed</th>
+        <th style="padding:8px 10px;background:#f7fafc;border-bottom:2px solid #e2e8f0;">Score</th>
+        <th style="padding:8px 10px;background:#f7fafc;border-bottom:2px solid #e2e8f0;">Grade</th>
+      </tr></thead><tbody>`;
+  scores.forEach(s => {
+    const sc2 = s.score !== null ? scoreClass(s.score) : 'na';
+    html += `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;color:#a0aec0;">${s.idx}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;font-weight:600;">${s.rt}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;">${s.dt ? fmtDate(s.dt) : '–'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;color:#276749;">${s.passed}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;color:${s.failed>0?'#c53030':'#276749'};">${s.failed}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;font-weight:700;">${s.score !== null ? s.score+'%' : '–'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f4f8;">
+        ${s.score !== null ? `<span class="report-score-badge badge-${sc2}">${scoreGrade(s.score)}</span>` : '<span class="report-score-badge badge-na">N/A</span>'}
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table></div></div>';
+
+  document.getElementById('summaryContent').innerHTML = html;
+}
+
+function renderValList() {
+  let html = `<div class="alert alert-info" style="margin-bottom:16px;"><span class="alert-icon">ℹ️</span>
+    <span>${VALIDATIONS.length} validation rules are applied. Rules marked as "Warning" indicate data quality issues; "Error" indicates critical problems; "Notification" is informational.</span>
+  </div>
+  <div class="val-list">`;
+
+  VALIDATIONS.forEach(v => {
+    html += `<div class="val-item">
+      <span class="val-id">${v.id}</span>
+      <span class="val-desc">${v.description}</span>
+      <span class="val-type type-${v.alertType.toLowerCase()}">${v.alertType}</span>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('valListContent').innerHTML = html;
+}
+
+// ============================================================
+// EXPORT CSV
+// ============================================================
+function exportCSV() {
+  const rows = [['Report#','ReportType','DateTime','ValidationID','Category','AlertType','Status','Message']];
+  state.results.forEach((rpt, i) => {
+    const rt = rpt.row.report_type || '';
+    const dt = rpt.row.finish_datetime_utc || rpt.row.start_datetime_utc || '';
+    rpt.results.filter(r => r.result !== null).forEach(r => {
+      rows.push([
+        i+1, rt, dt,
+        r.v.id, r.v.category, r.v.alertType,
+        r.result.pass ? 'Pass' : 'Fail',
+        r.result.pass ? '' : (r.result.msg || r.v.description)
+      ]);
+    });
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'validation_results.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
