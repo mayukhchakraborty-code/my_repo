@@ -1,9 +1,28 @@
+# Python virtual environments
 venv/
 .venv/
 env/
 bin/
 lib/
 include/
-.DS_Store
 __pycache__/
 *.pyc
+
+# macOS metadata
+.DS_Store
+
+# -----------------------------------------------------------------
+# Large raw-data backups — kept locally on disk, never pushed
+# viscosity/
+viscosity/ZN-*.json
+viscosity/ZN-*.zip
+
+# -----------------------------------------------------------------
+# Generated output folders — these are produced by scripts, not source
+# Add **/output_reports/ or **/output/ here as you add new tasks
+viscosity/output_reports/
+
+# -----------------------------------------------------------------
+# Data / spreadsheet files — input/output data, not source code
+*.xlsx
+*.xls
