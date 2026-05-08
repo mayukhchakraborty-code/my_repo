@@ -1,10 +1,7 @@
-# Python virtual environments
+# Python virtual environments — covers root-level and all task-level .venv/
 venv/
 .venv/
 env/
-bin/
-lib/
-include/
 __pycache__/
 *.pyc
 
@@ -12,17 +9,27 @@ __pycache__/
 .DS_Store
 
 # -----------------------------------------------------------------
-# Large raw-data backups — kept locally on disk, never pushed
 # viscosity/
+# Large raw-data backups — kept locally on disk, never pushed
 viscosity/ZN-*.json
 viscosity/ZN-*.zip
-
-# -----------------------------------------------------------------
-# Generated output folders — these are produced by scripts, not source
-# Add **/output_reports/ or **/output/ here as you add new tasks
+# Generated output — produced by ingestion_viscosity.py
 viscosity/output_reports/
 
 # -----------------------------------------------------------------
-# Data / spreadsheet files — input/output data, not source code
-*.xlsx
-*.xls
+# conversion_mt/
+# Input/output Excel data files — not source code
+conversion_mt/*.xlsx
+conversion_mt/*.xls
+
+# -----------------------------------------------------------------
+# onboarding/
+# Add any large data files here if needed in future
+# onboarding/*.csv — intentionally NOT ignored (viscosity_lookup is tiny reference data)
+
+# -----------------------------------------------------------------
+# Template for new task folders — copy this block when adding a new task:
+# new_task/
+# new_task/output/
+# new_task/input/*.json
+# new_task/input/*.xlsx
