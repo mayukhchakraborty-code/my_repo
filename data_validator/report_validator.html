@@ -86,6 +86,7 @@
   .field-select { flex: 1; padding: 6px 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; background: white; color: #2d3748; }
   .auto-badge { font-size: 10px; background: #38a169; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
   .skip-badge { font-size: 10px; background: #718096; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+  .csv-badge { font-size: 10px; background: #6b46c1; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
 
   /* Scoring */
   .score-header { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -271,6 +272,16 @@
     <div class="card">
       <div class="card-title">Map Fields to Standard Names</div>
       <div class="card-sub">Match your data columns to the standard field names used for validation. Auto-detected fields are highlighted in green.</div>
+      <div style="margin-bottom:16px;padding:14px 16px;background:#faf5ff;border:1px solid #d6bcfa;border-radius:8px;">
+        <div style="font-size:13px;font-weight:700;color:#553c9a;margin-bottom:8px;">📎 Load Mapping from CSV</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <label class="btn btn-outline btn-sm" for="mappingCsvInput" style="cursor:pointer;border-color:#9f7aea;color:#553c9a;">Upload Mapping CSV</label>
+          <input type="file" id="mappingCsvInput" accept=".csv" style="display:none;">
+          <button class="btn btn-outline btn-sm" onclick="downloadMappingTemplate()" style="border-color:#9f7aea;color:#553c9a;">⬇ Download Template</button>
+          <span style="font-size:12px;color:#718096;">CSV must have columns: <strong>source_column</strong>, <strong>standard_field</strong></span>
+        </div>
+        <div id="mappingCsvStatus" class="hidden" style="margin-top:8px;"></div>
+      </div>
       <div id="mappingStats" class="alert alert-info" style="margin-bottom:16px;"></div>
       <div class="mapping-grid" id="mappingGrid"></div>
       <div class="btn-group">
@@ -327,6 +338,7 @@ const state = {
   sortStatus: null, // 'ok', 'partial', 'failed'
   sortMessage: '',
   mapping: {},       // standardKey -> rawColumnName
+  csvMappedFields: new Set(), // tracks which fields were set via mapping CSV
   mappedData: [],
   results: [],
 };
@@ -1486,6 +1498,7 @@ function handleFile(file) {
 
       // Auto-detect mapping
       state.mapping = autoDetectMapping(state.headers);
+      state.csvMappedFields = new Set();
 
       // Proceed to step 2
       setTimeout(() => {
@@ -1570,11 +1583,13 @@ function renderMappingGrid() {
   let html = '';
   for (const field of STANDARD_FIELDS) {
     const mapped = state.mapping[field.key];
-    const isAuto = !!mapped;
-    const rowClass = isAuto ? 'mapping-row auto-mapped' : (field.required ? 'mapping-row required-missing' : 'mapping-row');
+    const isMapped = !!mapped;
+    const isCsv = state.csvMappedFields.has(field.key);
+    const rowClass = isMapped ? 'mapping-row auto-mapped' : (field.required ? 'mapping-row required-missing' : 'mapping-row');
+    const badge = isCsv ? '<span class="csv-badge">CSV</span>' : (isMapped ? '<span class="auto-badge">AUTO</span>' : '');
     html += `<div class="${rowClass}" id="mrow_${field.key}">
       <div class="field-label">${field.label}${field.required ? '<span class="field-req">*</span>' : ''}
-        ${isAuto ? '<span class="auto-badge">AUTO</span>' : ''}
+        ${badge}
       </div>
       <select class="field-select" data-field="${field.key}" onchange="updateMapping(this)">
         ${opts.replace(`value="${mapped}"`, `value="${mapped}" selected`)}
@@ -1595,6 +1610,86 @@ function updateMapping(sel) {
     const field = STANDARD_FIELDS.find(f => f.key === key);
     sel.closest('.mapping-row').className = field?.required ? 'mapping-row required-missing' : 'mapping-row';
   }
+}
+
+// ============================================================
+// MAPPING CSV UPLOAD
+// ============================================================
+document.getElementById('mappingCsvInput').addEventListener('change', e => {
+  if (e.target.files[0]) handleMappingCSV(e.target.files[0]);
+  e.target.value = '';
+});
+
+function handleMappingCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = parseCSV(e.target.result);
+      if (!parsed.headers.length || !parsed.data.length) throw new Error('CSV is empty or has no data rows');
+
+      const norm = s => s.toLowerCase().replace(/[\s_\-\.]/g, '');
+      const hdrs = parsed.headers;
+
+      const srcNames = ['source_column', 'source', 'raw_column', 'from', 'input', 'column'];
+      const tgtNames = ['standard_field', 'standard', 'target', 'to', 'output', 'field_key', 'key'];
+
+      let srcIdx = hdrs.findIndex(h => srcNames.some(n => norm(h) === norm(n)));
+      let tgtIdx = hdrs.findIndex(h => tgtNames.some(n => norm(h) === norm(n)));
+      if (srcIdx < 0) srcIdx = 0;
+      if (tgtIdx < 0) tgtIdx = 1;
+      if (hdrs.length < 2) throw new Error('CSV must have at least 2 columns');
+
+      const srcCol = hdrs[srcIdx];
+      const tgtCol = hdrs[tgtIdx];
+
+      let applied = 0, skipped = 0;
+      const newCsvKeys = new Set();
+
+      for (const row of parsed.data) {
+        const rawCol = (row[srcCol] || '').trim();
+        const stdKey = (row[tgtCol] || '').trim();
+        if (!rawCol || !stdKey) continue;
+
+        const fieldDef = STANDARD_FIELDS.find(f => f.key === stdKey);
+        if (!fieldDef) { skipped++; continue; }
+
+        const headerMatch = state.headers.find(h => h === rawCol) ||
+                            state.headers.find(h => h.toLowerCase() === rawCol.toLowerCase());
+        if (!headerMatch) { skipped++; continue; }
+
+        state.mapping[stdKey] = headerMatch;
+        newCsvKeys.add(stdKey);
+        applied++;
+      }
+
+      state.csvMappedFields = newCsvKeys;
+      renderMappingGrid();
+
+      const statusEl = document.getElementById('mappingCsvStatus');
+      statusEl.innerHTML = `<div class="alert ${applied > 0 ? 'alert-success' : 'alert-warning'}">
+        <span class="alert-icon">${applied > 0 ? '✅' : '⚠️'}</span>
+        Applied <strong>${applied}</strong> mapping(s) from CSV${skipped > 0 ? ` — <strong>${skipped}</strong> row(s) skipped (unknown standard_field key or column not found in data)` : ''}.
+      </div>`;
+      statusEl.classList.remove('hidden');
+    } catch (err) {
+      const statusEl = document.getElementById('mappingCsvStatus');
+      statusEl.innerHTML = `<div class="alert alert-error"><span class="alert-icon">❌</span>Error reading mapping CSV: ${err.message}</div>`;
+      statusEl.classList.remove('hidden');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function downloadMappingTemplate() {
+  const rows = ['source_column,standard_field'];
+  for (const f of STANDARD_FIELDS) {
+    rows.push(`,${f.key}`);
+  }
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'field_mapping_template.csv';
+  a.click();
 }
 
 // ============================================================

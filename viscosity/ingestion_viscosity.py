@@ -38,23 +38,23 @@ IMO_FILTER = 9381500
 
 # Report date range: include reports whose finishDateUTC falls between FROM and TO (both inclusive).
 # Use ISO-8601 format.  Example: "2025-05-04T10:00:00+00:00"
-DATE_FROM = "2025-12-31T11:00:00+00:00"
-DATE_TO   = "2026-01-31T11:00:00+00:00"
+DATE_FROM = "2026-04-01T10:00:00+00:00"
+DATE_TO   = "2026-04-23T10:00:00+00:00"
 
 # Viscosity values (cSt @ 15 °C) to apply for each fuel grade.
 # Only grades listed here will be updated.  Grades not listed are left unchanged.
 # Set a value to None to skip that grade even if it is listed.
 VISCOSITY_VALUES = {
-    "ulsfo":    19.60,
-    "vlsfo":    0,    # <-- no existing value in the backup; set yours here
-    "mgo":       2.65,
-    "mdo":       0,
-    "hsfo":    0,
-    "hsmgo":     0,
-    "ulsmgo":    0,
+    "ulsfo": 19.60,
+    "vlsfo": 0,    # <-- no existing value in the backup; set yours here
+    "mgo": 2.65,
+    "mdo": 0,
+    "hsfo": 0,
+    "hsmgo": 0,
+    "ulsmgo": 0,
     "hsfoBio": 0,
     "ulsfoBio": 0,
-    "mgoBio":    0,
+    "mgoBio": 0,
 }
 
 # Offline app version string written into the meta block of each individual output JSON
