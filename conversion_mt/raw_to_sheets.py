@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 
-INPUT_FOLDER = os.path.join(os.path.dirname(__file__), "Panamax Vessels")
+INPUT_FOLDER = os.path.join(os.path.dirname(__file__), "Aframax vessels")
 OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "output_raw_sheet.xlsx")
 
 MAX_SHEET_NAME_LEN = 31  # Excel sheet name limit
